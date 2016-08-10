@@ -1,7 +1,6 @@
 package com.xperia64.twinge;
 
 import java.io.InputStream;
-import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Locale;
@@ -38,11 +37,11 @@ public class TwingeActivity extends AppCompatActivity {
 	Button button;
 	EditText edittext;
 	CheckBox checkbox;
-	final String regex1 = "^(http://|)([w]{3}\\.|)(twitch.tv/).*(/v/)\\d{7,8}$";
-	final String regex2 = "^\\d{7,8}$";
-	final String regex3 = "^(http://).*(/v1/AUTH_system).*(m3u8)$";
+	final String regex1 = "^(http://|)(https://|)([w]{3}\\.|)(twitch.tv/).*(/v/)\\d{7,10}$";
+	final String regex2 = "^\\d{7,10}$";
+	final String regex3 = "^(https://|)(http://|).*(m3u8)$";
 	final String apiTmplUrl = "https://api.twitch.tv/api/vods/%s/access_token";
-	final String usherTmplUrl = "http://usher.twitch.tv/vod/%s?nauthsig=%s&allow_source=true&nauth=%s";
+	final String usherTmplUrl = "https://usher.ttvnw.net/vod/%s.m3u8?nauthsig=%s&allow_source=true&nauth=%s";
 	@Override
 	protected void onCreate(Bundle savedInstanceState)
 	{
@@ -133,12 +132,12 @@ public class TwingeActivity extends AppCompatActivity {
 		        ((TwingeActivity)context).httpsDownloadFinished(result);
 		    }
 	}
-	public class HttpDownloadTask extends AsyncTask<String, Integer, String> {
+	public class HttpsDownloadTask2 extends AsyncTask<String, Integer, String> {
 
 	    private Context context;
 	    private PowerManager.WakeLock mWakeLock;
 	    private ProgressDialog prog;
-	    public HttpDownloadTask(Context context) {
+	    public HttpsDownloadTask2(Context context) {
 	        this.context = context;
 	    }
 	    @Override
@@ -162,7 +161,7 @@ public class TwingeActivity extends AppCompatActivity {
 	  	prog.setOnCancelListener(new DialogInterface.OnCancelListener() {
 	  	    @Override
 	  	    public void onCancel(DialogInterface dialog) {
-	  	        HttpDownloadTask.this.cancel(true);
+	  	        HttpsDownloadTask2.this.cancel(true);
 	  	    }
 	  	});
 	  	  prog.setTitle("Loading playlists...");
@@ -178,9 +177,9 @@ public class TwingeActivity extends AppCompatActivity {
 				Log.v("Twinge","Loading: "+params[0]);
 			URL url = null;
 			url = new URL(params[0]);
-			HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+			HttpsURLConnection connection = (HttpsURLConnection) url.openConnection();
 	        connection.connect();
-	        if (connection.getResponseCode() != HttpURLConnection.HTTP_OK) {
+	        if (connection.getResponseCode() != HttpsURLConnection.HTTP_OK) {
 	        	Toast.makeText(context, "Bad VOD connection", Toast.LENGTH_SHORT).show();
 	            return null;
 	        }
@@ -193,7 +192,7 @@ public class TwingeActivity extends AppCompatActivity {
 		protected void onPostExecute(String result) {
 			mWakeLock.release();
 			prog.dismiss();
-		        ((TwingeActivity)context).httpDownloadFinished(result);
+		        ((TwingeActivity)context).httpsDownloadFinished2(result);
 		    }
 		
 	}
@@ -204,7 +203,7 @@ public class TwingeActivity extends AppCompatActivity {
 		downloadTask.execute(apiUrl);
         
 	}
-	public void httpDownloadFinished(String result)
+	public void httpsDownloadFinished2(String result)
 	{
 		if(result==null||TextUtils.isEmpty(result)||!result.startsWith("#EXTM3U"))
 		{
@@ -284,17 +283,17 @@ public class TwingeActivity extends AppCompatActivity {
 	{
 		//Toast.makeText(TwingeActivity.this, result, Toast.LENGTH_SHORT).show();
 		//System.out.println(result.length());
-		if(result==null||TextUtils.isEmpty(result)||!((result.length()==183||result.length()==184)&&result.startsWith("{\"token\":\"{")&&(result.endsWith("\"}"))))
+		if(result==null||TextUtils.isEmpty(result)&&result.startsWith("{\"token\":\"{")&&(result.endsWith("\"}")))
 		{
 			Toast.makeText(TwingeActivity.this, "Bad twitch API result (Is this a valid video ID?)", Toast.LENGTH_SHORT).show();
 			return;
 		}
-		String token = result.substring(10,result.length()==184?133:132);
+		String token = result.substring(result.indexOf("\"token\"")+9, result.indexOf("\",\"sig\""));	
 		token = token.replace("\\", "");
-		String tokenSig = result.substring(result.length()==184?142:141,result.length()==184?182:181);
-		String vodId = result.substring(39,result.length()==184?47:46);
+		String tokenSig = result.substring(result.indexOf("\"sig\":")+7,result.lastIndexOf("\"}")); //result.substring();
+		String vodId = result.substring(result.indexOf("\\\"vod_id\\\":")+11, result.indexOf(",",result.indexOf("\\\"vod_id\\\":"))); //result.substring();
 		String usherUrl = String.format(usherTmplUrl, vodId, tokenSig, token);
-		final HttpDownloadTask downloadTask = new HttpDownloadTask(this);
+		final HttpsDownloadTask2 downloadTask = new HttpsDownloadTask2(this);
 		downloadTask.execute(usherUrl);
 	}
 	
